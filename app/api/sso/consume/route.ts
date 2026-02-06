@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${sharedSecret}`,
+        "x-vizi-sso-secret": sharedSecret,
       },
       body: JSON.stringify({ token }),
     });
