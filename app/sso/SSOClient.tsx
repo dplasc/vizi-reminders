@@ -19,8 +19,15 @@ export function SSOClient() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token: token.trim() }),
+      redirect: "manual",
     })
       .then(async (res) => {
+        if (res.status === 302) {
+          const location = res.headers.get("Location") || "/dashboard";
+          setStatus("success");
+          window.location.href = location;
+          return;
+        }
         const data = await res.json().catch(() => ({}));
         if (res.ok && data?.ok) {
           setStatus("success");

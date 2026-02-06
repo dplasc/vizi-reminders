@@ -56,11 +56,27 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const responseText = await verifyRes.text();
+
+  if (!verifyRes.ok) {
+    console.error("sso-consume-failed", { status: verifyRes.status, text: responseText });
+    let errorMessage = "Neispravan ili istekao token.";
+    try {
+      const parsed = JSON.parse(responseText) as { error?: string };
+      if (typeof parsed?.error === "string" && parsed.error) {
+        errorMessage = parsed.error;
+      }
+    } catch {
+      /* use default */
+    }
+    return NextResponse.json({ ok: false, error: errorMessage }, { status: 401 });
+  }
+
   let data: { ok?: boolean; userId?: string; error?: string };
   try {
-    data = await verifyRes.json();
+    data = JSON.parse(responseText);
   } catch {
-    console.error("[SSO consume] Invalid JSON from verify endpoint");
+    console.error("sso-consume-failed", { status: verifyRes.status, text: responseText });
     return NextResponse.json(
       { ok: false, error: "Prijava nije uspjela." },
       { status: 502 }
@@ -75,7 +91,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const response = NextResponse.json({ ok: true });
+  const dashboardUrl = new URL("/dashboard", request.url);
+  const response = NextResponse.redirect(dashboardUrl, 302);
   response.cookies.set(SESSION_COOKIE_NAME, data.userId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
