@@ -11,6 +11,9 @@ out/
 build
 dist
 
+# TypeScript
+tsconfig.tsbuildinfo
+
 # misc
 .DS_Store
 *.pem
