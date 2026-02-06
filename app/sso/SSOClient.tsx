@@ -23,6 +23,10 @@ export function SSOClient() {
       redirect: "manual",
     })
       .then(async (res) => {
+        if (res.type === "opaqueredirect" || res.status === 0) {
+          window.location.href = "/dashboard";
+          return;
+        }
         if (res.status === 302) {
           const location = res.headers.get("Location") || "/dashboard";
           window.location.href = location;
