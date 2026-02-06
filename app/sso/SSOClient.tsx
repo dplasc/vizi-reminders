@@ -14,6 +14,7 @@ export function SSOClient() {
   useEffect(() => {
     if (!token?.trim()) return;
 
+    setErrorMessage("");
     setStatus("loading");
     fetch("/api/sso/consume", {
       method: "POST",
@@ -24,16 +25,15 @@ export function SSOClient() {
       .then(async (res) => {
         if (res.status === 302) {
           const location = res.headers.get("Location") || "/dashboard";
-          setStatus("success");
           window.location.href = location;
           return;
         }
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && data?.ok) {
+        if (res.ok) {
           setStatus("success");
           router.replace("/dashboard");
           return;
         }
+        const data = await res.json().catch(() => ({}));
         setStatus("error");
         setErrorMessage(
           typeof data?.error === "string" ? data.error : "Prijava nije uspjela."
@@ -82,7 +82,7 @@ export function SSOClient() {
   return (
     <div className="max-w-lg w-full space-y-6 text-center">
       <h1 className="text-2xl font-semibold text-gray-900">SSO</h1>
-      <p className="text-gray-600 leading-relaxed">Prijava u tijeku…</p>
+      <p className="text-gray-600 leading-relaxed">Prijavljujem…</p>
     </div>
   );
 }
