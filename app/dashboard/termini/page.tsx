@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { mockAppointments, type Appointment } from "@/lib/mockAppointments";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 function getLocalDateKey(iso: string): string {
   const d = new Date(iso);
@@ -62,6 +64,8 @@ export default function TerminiPage() {
     return a.localeCompare(b);
   });
 
+  const todayAppointments = byDate.get(todayKey) ?? [];
+
   return (
     <main className="min-h-screen bg-gray-50 p-6 md:p-8">
       <div className="max-w-3xl mx-auto space-y-8">
@@ -120,6 +124,52 @@ export default function TerminiPage() {
               </div>
             );
           })}
+        </section>
+
+        {/* Danas u rasporedu */}
+        <section aria-labelledby="danas-u-rasporedu-heading">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle id="danas-u-rasporedu-heading" className="text-base">
+                Danas u rasporedu
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {todayAppointments.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">
+                  Nema termina za danas.
+                </p>
+              ) : (
+                <ul className="divide-y divide-gray-200 rounded-md border border-gray-200 overflow-hidden">
+                  {todayAppointments.map((a) => (
+                    <li
+                      key={a.id}
+                      className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 bg-white sm:flex-nowrap"
+                    >
+                      <span className="text-sm font-medium text-gray-900 tabular-nums w-12 shrink-0">
+                        {formatTime(a.startAt)}
+                      </span>
+                      <span className="text-sm text-gray-900 flex-1 min-w-0">
+                        {a.clientName}
+                      </span>
+                      <Badge
+                        variant="secondary"
+                        className={
+                          a.status === "cancelled"
+                            ? "bg-gray-100 text-gray-600 border-0"
+                            : a.reminderPlanned
+                              ? "bg-green-50 text-green-700 border-0"
+                              : "bg-amber-50 text-amber-700 border-0"
+                        }
+                      >
+                        {getBadgeLabel(a)}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
         </section>
       </div>
     </main>
