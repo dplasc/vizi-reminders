@@ -1,7 +1,49 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { mockAppointments, type Appointment } from "@/lib/mockAppointments";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+const SESSION_COOKIE_NAME = "vizi_reminders_session";
+
+type DbAppointmentRow = {
+  id: string;
+  owner_id: string;
+  title: string;
+  email?: string | null;
+  starts_at: string;
+  status: "ready" | "no_email" | "canceled";
+};
+
+function mapDbRowToAppointment(row: DbAppointmentRow): Appointment {
+  const status = row.status === "canceled" ? "cancelled" : "booked";
+  const reminderPlanned = row.status === "ready";
+  return {
+    id: row.id,
+    startAt: row.starts_at,
+    clientName: row.title,
+    clientEmail: row.email ?? null,
+    status,
+    reminderPlanned,
+  };
+}
+
+async function fetchAppointmentsForUser(userId: string): Promise<Appointment[]> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("appointments")
+    .select("id, owner_id, title, email, starts_at, status")
+    .eq("owner_id", userId)
+    .order("starts_at", { ascending: true });
+
+  if (error) {
+    console.error("[termini] Supabase query failed:", error.message);
+    throw error;
+  }
+
+  return (data ?? []).map((row) => mapDbRowToAppointment(row as DbAppointmentRow));
+}
 
 function getLocalDateKey(iso: string): string {
   const d = new Date(iso);
@@ -18,14 +60,21 @@ function formatTime(iso: string): string {
   return `${h}:${min}`;
 }
 
-function getSectionTitle(dateKey: string, todayKey: string, tomorrowKey: string): string {
+function getSectionTitle(
+  dateKey: string,
+  todayKey: string,
+  tomorrowKey: string
+): string {
   if (dateKey === todayKey) return "Danas";
   if (dateKey === tomorrowKey) return "Sutra";
   const [y, m, day] = dateKey.split("-").map(Number);
   const d = new Date(y, m - 1, day);
   const weekday = d.toLocaleDateString("hr-HR", { weekday: "long" });
   const capitalized = weekday.charAt(0).toUpperCase() + weekday.slice(1);
-  const datePart = d.toLocaleDateString("hr-HR", { day: "numeric", month: "numeric" });
+  const datePart = d.toLocaleDateString("hr-HR", {
+    day: "numeric",
+    month: "numeric",
+  });
   return `${capitalized}, ${datePart}`;
 }
 
@@ -35,7 +84,25 @@ function getBadgeLabel(a: Appointment): string {
   return "Nema e-maila";
 }
 
-export default function TerminiPage() {
+export default async function TerminiPage() {
+  const cookieStore = await cookies();
+  const session = cookieStore.get(SESSION_COOKIE_NAME);
+  const userId = session?.value;
+
+  let appointments: Appointment[];
+
+  if (!userId) {
+    console.error("[termini] No session userId; using mock fallback");
+    appointments = mockAppointments;
+  } else {
+    try {
+      appointments = await fetchAppointmentsForUser(userId);
+    } catch (err) {
+      console.error("[termini] Failed to fetch appointments:", err);
+      appointments = mockAppointments;
+    }
+  }
+
   const now = new Date();
   const todayKey = getLocalDateKey(now.toISOString());
   const tomorrowDate = new Date(now);
@@ -43,7 +110,7 @@ export default function TerminiPage() {
   const tomorrowKey = getLocalDateKey(tomorrowDate.toISOString());
 
   const byDate = new Map<string, Appointment[]>();
-  for (const a of mockAppointments) {
+  for (const a of appointments) {
     const key = getLocalDateKey(a.startAt);
     const list = byDate.get(key) ?? [];
     list.push(a);
@@ -88,7 +155,7 @@ export default function TerminiPage() {
         {/* Grouped list */}
         <section className="space-y-6">
           {sortedKeys.map((dateKey) => {
-            const appointments = byDate.get(dateKey) ?? [];
+            const listAppointments = byDate.get(dateKey) ?? [];
             const title = getSectionTitle(dateKey, todayKey, tomorrowKey);
             return (
               <div key={dateKey}>
@@ -96,7 +163,7 @@ export default function TerminiPage() {
                   {title}
                 </h2>
                 <ul className="bg-white rounded-lg border border-gray-200 shadow-sm divide-y divide-gray-200">
-                  {appointments.map((a) => (
+                  {listAppointments.map((a) => (
                     <li
                       key={a.id}
                       className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 sm:flex-nowrap"
