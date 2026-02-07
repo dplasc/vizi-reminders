@@ -6,6 +6,7 @@ const CRON_SECRET = process.env.CRON_SECRET;
 const TIMEZONE = "Europe/Zagreb";
 const EMAIL_ERROR_MAX_LENGTH = 500;
 const BATCH_LIMIT = 200;
+const ADVISORY_LOCK_KEY = 912345;
 
 /**
  * Returns tomorrow's date window in UTC as ISO strings, based on Europe/Zagreb calendar.
@@ -65,6 +66,43 @@ export async function GET(request: NextRequest) {
   console.log("[cron/send-reminders] Start", { batchLimit: BATCH_LIMIT, window: { startIso, endIso } });
 
   const supabase = getSupabaseAdmin();
+
+  const { data: lockAcquired, error: lockError } = await supabase.rpc("try_advisory_lock", {
+    p_key: ADVISORY_LOCK_KEY,
+  });
+  if (lockError) {
+    console.error("[cron/send-reminders] Advisory lock RPC failed:", lockError.message);
+    return NextResponse.json(
+      { error: "lock_error", message: lockError.message },
+      { status: 500 }
+    );
+  }
+  if (lockAcquired !== true) {
+    console.log("[cron/send-reminders] Run skipped: lock not acquired");
+    return NextResponse.json(
+      { ok: true, skipped: true, reason: "lock_not_acquired" },
+      { status: 200 }
+    );
+  }
+
+  try {
+    const result = await runSendReminders(supabase, startIso, endIso);
+    return NextResponse.json(result.body, { status: result.status });
+  } finally {
+    const { error: unlockError } = await supabase.rpc("advisory_unlock", {
+      p_key: ADVISORY_LOCK_KEY,
+    });
+    if (unlockError) {
+      console.warn("[cron/send-reminders] Advisory unlock failed:", unlockError.message);
+    }
+  }
+}
+
+async function runSendReminders(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  startIso: string,
+  endIso: string
+) {
   const { data, error } = await supabase
     .from("appointments")
     .select("id, owner_id, starts_at, email")
@@ -79,10 +117,10 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("[cron/send-reminders] Query failed:", error.message);
-    return NextResponse.json(
-      { error: "query_failed", message: error.message },
-      { status: 500 }
-    );
+    return {
+      body: { error: "query_failed", message: error.message },
+      status: 500 as const,
+    };
   }
 
   const rows = (data ?? []) as AppointmentRow[];
@@ -150,8 +188,8 @@ export async function GET(request: NextRequest) {
 
   console.log("[cron/send-reminders] Summary", { found, sent, failed });
 
-  return NextResponse.json(
-    {
+  return {
+    body: {
       ok: true,
       window: { startIso, endIso },
       found,
@@ -159,6 +197,6 @@ export async function GET(request: NextRequest) {
       sent,
       failed,
     },
-    { status: 200 }
-  );
+    status: 200 as const,
+  };
 }
