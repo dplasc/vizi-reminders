@@ -40,6 +40,17 @@ function getTomorrowWindowInZagreb(): { startIso: string; endIso: string } {
   return { startIso, endIso };
 }
 
+/** Window for 2h reminder: appointments starting in (now+1h45m) to (now+2h15m). */
+function get2hWindow(): { startIso: string; endIso: string } {
+  const now = Date.now();
+  const startMs = now + (1 * 60 + 45) * 60 * 1000;
+  const endMs = now + (2 * 60 + 15) * 60 * 1000;
+  return {
+    startIso: new Date(startMs).toISOString(),
+    endIso: new Date(endMs).toISOString(),
+  };
+}
+
 type AppointmentRow = {
   id: string;
   owner_id: string;
@@ -75,6 +86,27 @@ function buildReminderHtml(appointment: AppointmentRow): string {
   const parts: string[] = [
     "<p><strong>Vizi Podsjetnici</strong></p>",
     "<p>Podsjetnik: imate termin sutra.</p>",
+    "<hr>",
+  ];
+  if (appointment.title != null && appointment.title.trim() !== "") {
+    parts.push(`<p><strong>Termin:</strong> ${escapeHtml(appointment.title.trim())}</p>`);
+  }
+  parts.push(
+    `<p><strong>Datum i vrijeme:</strong> ${escapeHtml(formatStartsAtInZagreb(appointment.starts_at))}</p>`
+  );
+  parts.push("<hr>");
+  parts.push('<p><small>Ovaj e-mail poslan je automatski. Ne odgovarajte na njega.</small></p>');
+  return parts.join("\n");
+}
+
+function buildReminder2hSubject(): string {
+  return "Podsjetnik: termin uskoro (u 2 sata)";
+}
+
+function buildReminder2hHtml(appointment: AppointmentRow): string {
+  const parts: string[] = [
+    "<p><strong>Vizi Podsjetnici</strong></p>",
+    "<p>Podsjetnik: vaš termin počinje za oko 2 sata.</p>",
     "<hr>",
   ];
   if (appointment.title != null && appointment.title.trim() !== "") {
@@ -179,7 +211,7 @@ async function runSendReminders(
   const resend = getResendClient();
   const from = getRemindersFromEmail();
 
-  let sent = 0;
+  let sentTomorrow = 0;
   let failed = 0;
 
   for (const appointment of withEmail) {
@@ -223,8 +255,8 @@ async function runSendReminders(
       continue;
     }
 
-    sent += 1;
-    console.log("[cron/send-reminders] Sent", {
+    sentTomorrow += 1;
+    console.log("[cron/send-reminders] Sent tomorrow", {
       appointmentId: appointment.id,
       email: to,
     });
@@ -235,7 +267,104 @@ async function runSendReminders(
       .eq("owner_id", appointment.owner_id);
   }
 
-  console.log("[cron/send-reminders] Summary", { found, sent, failed });
+  const { startIso: start2h, endIso: end2h } = get2hWindow();
+  const { data: data2h, error: error2h } = await supabase
+    .from("appointments")
+    .select("id, owner_id, starts_at, email, title")
+    .gte("starts_at", start2h)
+    .lte("starts_at", end2h)
+    .not("email", "is", null)
+    .is("email_sent_2h_at", null)
+    .neq("status", "canceled")
+    .order("starts_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(BATCH_LIMIT);
+
+  if (error2h) {
+    console.error("[cron/send-reminders] 2h query failed:", error2h.message);
+    return {
+      body: {
+        ok: true,
+        window: { startIso, endIso },
+        found,
+        batchLimit: BATCH_LIMIT,
+        sentTomorrow,
+        failed,
+        found2h: 0,
+        sent2h: 0,
+        failed2h: 0,
+      },
+      status: 200 as const,
+    };
+  }
+
+  const rows2h = (data2h ?? []) as AppointmentRow[];
+  const withEmail2h = rows2h.filter((r) => r.email != null && r.email.trim() !== "");
+  const found2h = withEmail2h.length;
+  let sent2h = 0;
+  let failed2h = 0;
+
+  for (const appointment of withEmail2h) {
+    const to = appointment.email!.trim();
+    const subject = buildReminder2hSubject();
+    const html = buildReminder2hHtml(appointment);
+    let sendError: string | null = null;
+
+    try {
+      const result = await resend.emails.send({
+        from,
+        to,
+        subject,
+        html,
+      });
+      if (result.error) {
+        sendError =
+          typeof result.error.message === "string"
+            ? result.error.message
+            : JSON.stringify(result.error);
+      }
+    } catch (err) {
+      sendError = err instanceof Error ? err.message : String(err);
+    }
+
+    if (sendError) {
+      failed2h += 1;
+      console.warn("[cron/send-reminders] 2h send failed", {
+        appointmentId: appointment.id,
+        error: sendError,
+      });
+      const truncated =
+        sendError.length > EMAIL_ERROR_MAX_LENGTH
+          ? sendError.slice(0, EMAIL_ERROR_MAX_LENGTH)
+          : sendError;
+      await supabase
+        .from("appointments")
+        .update({ email_error: truncated })
+        .eq("id", appointment.id)
+        .eq("owner_id", appointment.owner_id);
+      continue;
+    }
+
+    sent2h += 1;
+    console.log("[cron/send-reminders] Sent 2h", {
+      appointmentId: appointment.id,
+      email: to,
+    });
+    await supabase
+      .from("appointments")
+      .update({ email_sent_2h_at: new Date().toISOString(), email_error: null })
+      .eq("id", appointment.id)
+      .eq("owner_id", appointment.owner_id);
+  }
+
+  console.log("[cron/send-reminders] Summary", {
+    found,
+    sentTomorrow,
+    failed,
+    found2h,
+    sent2h,
+    failed2h,
+  });
 
   return {
     body: {
@@ -243,8 +372,11 @@ async function runSendReminders(
       window: { startIso, endIso },
       found,
       batchLimit: BATCH_LIMIT,
-      sent,
+      sentTomorrow,
       failed,
+      found2h,
+      sent2h,
+      failed2h,
     },
     status: 200 as const,
   };
