@@ -186,7 +186,15 @@ export default async function TerminiPage() {
                       >
                         {getBadgeLabel(a)}
                       </span>
-                      <DeleteAppointmentButton appointmentId={a.id} />
+                      <span className="flex items-center gap-1 shrink-0">
+                        <Link
+                          href={`/dashboard/termini/${a.id}/uredi`}
+                          className="text-sm font-medium text-gray-600 hover:text-gray-900 underline"
+                        >
+                          Uredi
+                        </Link>
+                        <DeleteAppointmentButton appointmentId={a.id} />
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -233,7 +241,15 @@ export default async function TerminiPage() {
                       >
                         {getBadgeLabel(a)}
                       </Badge>
-                      <DeleteAppointmentButton appointmentId={a.id} />
+                      <span className="flex items-center gap-1 shrink-0">
+                        <Link
+                          href={`/dashboard/termini/${a.id}/uredi`}
+                          className="text-sm font-medium text-gray-600 hover:text-gray-900 underline"
+                        >
+                          Uredi
+                        </Link>
+                        <DeleteAppointmentButton appointmentId={a.id} />
+                      </span>
                     </li>
                   ))}
                 </ul>
