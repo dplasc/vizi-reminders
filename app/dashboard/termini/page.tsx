@@ -16,6 +16,7 @@ type DbAppointmentRow = {
   starts_at: string;
   status: "ready" | "no_email" | "canceled";
   email_sent_at?: string | null;
+  email_sent_2h_at?: string | null;
   email_error?: string | null;
 };
 
@@ -30,6 +31,7 @@ function mapDbRowToAppointment(row: DbAppointmentRow): Appointment {
     status,
     reminderPlanned,
     email_sent_at: row.email_sent_at ?? null,
+    email_sent_2h_at: row.email_sent_2h_at ?? null,
     email_error: row.email_error ?? null,
   };
 }
@@ -38,7 +40,7 @@ async function fetchAppointmentsForUser(userId: string): Promise<Appointment[]> 
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("appointments")
-    .select("id, owner_id, title, email, starts_at, status, email_sent_at, email_error")
+    .select("id, owner_id, title, email, starts_at, status, email_sent_at, email_sent_2h_at, email_error")
     .eq("owner_id", userId)
     .order("starts_at", { ascending: true });
 
@@ -95,6 +97,20 @@ const REMINDER_STATUS_LABELS: Record<ReminderStatus, string> = {
   sent: "Poslan",
   error: "Greška",
   pending: "Na čekanju",
+};
+
+type Reminder2hStatus = "sent" | "error" | "pending";
+
+function getReminder2hStatus(a: Appointment): Reminder2hStatus {
+  if (a.email_sent_2h_at != null) return "sent";
+  if (a.email_error != null) return "error";
+  return "pending";
+}
+
+const REMINDER_2H_STATUS_LABELS: Record<Reminder2hStatus, string> = {
+  sent: "2h Poslan",
+  error: "2h Greška",
+  pending: "2h Na čekanju",
 };
 
 export default async function TerminiPage() {
@@ -187,20 +203,36 @@ export default async function TerminiPage() {
                       <span className="text-sm text-gray-900 flex-1 min-w-0">
                         {a.clientName}
                       </span>
-                      <Badge
-                        variant={
-                          getReminderStatus(a) === "error"
-                            ? "destructive"
-                            : "secondary"
-                        }
-                        className={
-                          getReminderStatus(a) === "sent"
-                            ? "bg-green-50 text-green-700 border-0 hover:bg-green-50 hover:text-green-700"
-                            : undefined
-                        }
-                      >
-                        {REMINDER_STATUS_LABELS[getReminderStatus(a)]}
-                      </Badge>
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        <Badge
+                          variant={
+                            getReminderStatus(a) === "error"
+                              ? "destructive"
+                              : "secondary"
+                          }
+                          className={
+                            getReminderStatus(a) === "sent"
+                              ? "bg-green-50 text-green-700 border-0 hover:bg-green-50 hover:text-green-700"
+                              : undefined
+                          }
+                        >
+                          {REMINDER_STATUS_LABELS[getReminderStatus(a)]}
+                        </Badge>
+                        <Badge
+                          variant={
+                            getReminder2hStatus(a) === "error"
+                              ? "destructive"
+                              : "secondary"
+                          }
+                          className={
+                            getReminder2hStatus(a) === "sent"
+                              ? "bg-green-50 text-green-700 border-0 hover:bg-green-50 hover:text-green-700 text-xs"
+                              : "text-xs"
+                          }
+                        >
+                          {REMINDER_2H_STATUS_LABELS[getReminder2hStatus(a)]}
+                        </Badge>
+                      </span>
                       <span className="flex items-center gap-1 shrink-0">
                         <Link
                           href={`/dashboard/termini/${a.id}/uredi`}
@@ -244,20 +276,36 @@ export default async function TerminiPage() {
                       <span className="text-sm text-gray-900 flex-1 min-w-0">
                         {a.clientName}
                       </span>
-                      <Badge
-                        variant={
-                          getReminderStatus(a) === "error"
-                            ? "destructive"
-                            : "secondary"
-                        }
-                        className={
-                          getReminderStatus(a) === "sent"
-                            ? "bg-green-50 text-green-700 border-0 hover:bg-green-50 hover:text-green-700"
-                            : undefined
-                        }
-                      >
-                        {REMINDER_STATUS_LABELS[getReminderStatus(a)]}
-                      </Badge>
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        <Badge
+                          variant={
+                            getReminderStatus(a) === "error"
+                              ? "destructive"
+                              : "secondary"
+                          }
+                          className={
+                            getReminderStatus(a) === "sent"
+                              ? "bg-green-50 text-green-700 border-0 hover:bg-green-50 hover:text-green-700"
+                              : undefined
+                          }
+                        >
+                          {REMINDER_STATUS_LABELS[getReminderStatus(a)]}
+                        </Badge>
+                        <Badge
+                          variant={
+                            getReminder2hStatus(a) === "error"
+                              ? "destructive"
+                              : "secondary"
+                          }
+                          className={
+                            getReminder2hStatus(a) === "sent"
+                              ? "bg-green-50 text-green-700 border-0 hover:bg-green-50 hover:text-green-700 text-xs"
+                              : "text-xs"
+                          }
+                        >
+                          {REMINDER_2H_STATUS_LABELS[getReminder2hStatus(a)]}
+                        </Badge>
+                      </span>
                       <span className="flex items-center gap-1 shrink-0">
                         <Link
                           href={`/dashboard/termini/${a.id}/uredi`}

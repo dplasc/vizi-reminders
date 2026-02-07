@@ -6,6 +6,7 @@ export type Appointment = {
   status: "booked" | "cancelled";
   reminderPlanned: boolean; // derived for UI (true when booked and has email)
   email_sent_at?: string | null;
+  email_sent_2h_at?: string | null;
   email_error?: string | null;
 };
 
