@@ -4,6 +4,7 @@ import { mockAppointments, type Appointment } from "@/lib/mockAppointments";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DeleteAppointmentButton } from "@/components/DeleteAppointmentButton";
 
 const SESSION_COOKIE_NAME = "vizi_reminders_session";
 
@@ -185,6 +186,7 @@ export default async function TerminiPage() {
                       >
                         {getBadgeLabel(a)}
                       </span>
+                      <DeleteAppointmentButton appointmentId={a.id} />
                     </li>
                   ))}
                 </ul>
@@ -231,6 +233,7 @@ export default async function TerminiPage() {
                       >
                         {getBadgeLabel(a)}
                       </Badge>
+                      <DeleteAppointmentButton appointmentId={a.id} />
                     </li>
                   ))}
                 </ul>
