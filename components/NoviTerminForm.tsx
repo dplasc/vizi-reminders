@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 
 export type TerminFormInitialValues = {
   title: string;
@@ -24,9 +23,6 @@ const inputClassName =
 export function NoviTerminForm({ appointmentId, initialValues }: NoviTerminFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [testEmailSending, setTestEmailSending] = useState(false);
-  const [testEmailSuccess, setTestEmailSuccess] = useState<string | null>(null);
-  const [testEmailError, setTestEmailError] = useState<string | null>(null);
   const isEdit = !!appointmentId;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -101,31 +97,6 @@ export function NoviTerminForm({ appointmentId, initialValues }: NoviTerminFormP
   const submitLabel = isEdit
     ? (submitting ? "Spremanje…" : "Spremi promjene")
     : (submitting ? "Spremanje…" : "Spremi termin");
-
-  async function handleSendTestEmail() {
-    if (!appointmentId) return;
-    setTestEmailSuccess(null);
-    setTestEmailError(null);
-    setTestEmailSending(true);
-    try {
-      const res = await fetch("/api/reminders/send-test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ appointmentId }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success) {
-        setTestEmailSuccess("Test email je uspješno poslan.");
-        return;
-      }
-      setTestEmailError(
-        typeof data.error === "string" ? data.error : "Slanje test emaila nije uspjelo."
-      );
-    } finally {
-      setTestEmailSending(false);
-    }
-  }
 
   return (
     <section className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm space-y-5">
@@ -220,30 +191,6 @@ export function NoviTerminForm({ appointmentId, initialValues }: NoviTerminFormP
             Natrag na termine
           </Link>
         </div>
-
-        {/* TEMPORARY: Test reminder email button – remove after testing / when cron is in place */}
-        {isEdit && (
-          <div className="mt-6 pt-4 border-t border-gray-200 space-y-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleSendTestEmail}
-              disabled={testEmailSending}
-            >
-              {testEmailSending ? "Slanje…" : "Pošalji test email"}
-            </Button>
-            {testEmailSuccess && (
-              <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2" role="status">
-                {testEmailSuccess}
-              </p>
-            )}
-            {testEmailError && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2" role="alert">
-                {testEmailError}
-              </p>
-            )}
-          </div>
-        )}
       </form>
     </section>
   );
