@@ -5,6 +5,8 @@ export type Appointment = {
   clientEmail?: string | null;
   status: "booked" | "cancelled";
   reminderPlanned: boolean; // derived for UI (true when booked and has email)
+  email_sent_at?: string | null;
+  email_error?: string | null;
 };
 
 function toISODate(d: Date, hours: number, minutes: number): string {

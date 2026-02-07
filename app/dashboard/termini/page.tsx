@@ -15,6 +15,8 @@ type DbAppointmentRow = {
   email?: string | null;
   starts_at: string;
   status: "ready" | "no_email" | "canceled";
+  email_sent_at?: string | null;
+  email_error?: string | null;
 };
 
 function mapDbRowToAppointment(row: DbAppointmentRow): Appointment {
@@ -27,6 +29,8 @@ function mapDbRowToAppointment(row: DbAppointmentRow): Appointment {
     clientEmail: row.email ?? null,
     status,
     reminderPlanned,
+    email_sent_at: row.email_sent_at ?? null,
+    email_error: row.email_error ?? null,
   };
 }
 
@@ -34,7 +38,7 @@ async function fetchAppointmentsForUser(userId: string): Promise<Appointment[]> 
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("appointments")
-    .select("id, owner_id, title, email, starts_at, status")
+    .select("id, owner_id, title, email, starts_at, status, email_sent_at, email_error")
     .eq("owner_id", userId)
     .order("starts_at", { ascending: true });
 
@@ -79,11 +83,19 @@ function getSectionTitle(
   return `${capitalized}, ${datePart}`;
 }
 
-function getBadgeLabel(a: Appointment): string {
-  if (a.status === "cancelled") return "Otkazano";
-  if (a.reminderPlanned) return "Podsjetnik: spremno";
-  return "Nema e-maila";
+type ReminderStatus = "sent" | "error" | "pending";
+
+function getReminderStatus(a: Appointment): ReminderStatus {
+  if (a.email_sent_at != null) return "sent";
+  if (a.email_error != null) return "error";
+  return "pending";
 }
+
+const REMINDER_STATUS_LABELS: Record<ReminderStatus, string> = {
+  sent: "Poslan",
+  error: "Greška",
+  pending: "Na čekanju",
+};
 
 export default async function TerminiPage() {
   const cookieStore = await cookies();
@@ -175,17 +187,20 @@ export default async function TerminiPage() {
                       <span className="text-sm text-gray-900 flex-1 min-w-0">
                         {a.clientName}
                       </span>
-                      <span
-                        className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium shrink-0 ${
-                          a.status === "cancelled"
-                            ? "bg-gray-100 text-gray-600"
-                            : a.reminderPlanned
-                              ? "bg-green-50 text-green-700"
-                              : "bg-amber-50 text-amber-700"
-                        }`}
+                      <Badge
+                        variant={
+                          getReminderStatus(a) === "error"
+                            ? "destructive"
+                            : "secondary"
+                        }
+                        className={
+                          getReminderStatus(a) === "sent"
+                            ? "bg-green-50 text-green-700 border-0 hover:bg-green-50 hover:text-green-700"
+                            : undefined
+                        }
                       >
-                        {getBadgeLabel(a)}
-                      </span>
+                        {REMINDER_STATUS_LABELS[getReminderStatus(a)]}
+                      </Badge>
                       <span className="flex items-center gap-1 shrink-0">
                         <Link
                           href={`/dashboard/termini/${a.id}/uredi`}
@@ -230,16 +245,18 @@ export default async function TerminiPage() {
                         {a.clientName}
                       </span>
                       <Badge
-                        variant="secondary"
+                        variant={
+                          getReminderStatus(a) === "error"
+                            ? "destructive"
+                            : "secondary"
+                        }
                         className={
-                          a.status === "cancelled"
-                            ? "bg-gray-100 text-gray-600 border-0"
-                            : a.reminderPlanned
-                              ? "bg-green-50 text-green-700 border-0"
-                              : "bg-amber-50 text-amber-700 border-0"
+                          getReminderStatus(a) === "sent"
+                            ? "bg-green-50 text-green-700 border-0 hover:bg-green-50 hover:text-green-700"
+                            : undefined
                         }
                       >
-                        {getBadgeLabel(a)}
+                        {REMINDER_STATUS_LABELS[getReminderStatus(a)]}
                       </Badge>
                       <span className="flex items-center gap-1 shrink-0">
                         <Link
