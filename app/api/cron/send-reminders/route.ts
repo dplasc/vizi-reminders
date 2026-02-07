@@ -5,6 +5,7 @@ import { getResendClient, getRemindersFromEmail } from "@/lib/resend";
 const CRON_SECRET = process.env.CRON_SECRET;
 const TIMEZONE = "Europe/Zagreb";
 const EMAIL_ERROR_MAX_LENGTH = 500;
+const BATCH_LIMIT = 200;
 
 /**
  * Returns tomorrow's date window in UTC as ISO strings, based on Europe/Zagreb calendar.
@@ -61,6 +62,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { startIso, endIso } = getTomorrowWindowInZagreb();
+  console.log("[cron/send-reminders] Start", { batchLimit: BATCH_LIMIT, window: { startIso, endIso } });
 
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
@@ -70,7 +72,10 @@ export async function GET(request: NextRequest) {
     .lte("starts_at", endIso)
     .not("email", "is", null)
     .is("email_sent_at", null)
-    .neq("status", "canceled");
+    .neq("status", "canceled")
+    .order("starts_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(BATCH_LIMIT);
 
   if (error) {
     console.error("[cron/send-reminders] Query failed:", error.message);
@@ -150,6 +155,7 @@ export async function GET(request: NextRequest) {
       ok: true,
       window: { startIso, endIso },
       found,
+      batchLimit: BATCH_LIMIT,
       sent,
       failed,
     },
