@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { getResendClient, getRemindersFromEmail } from "@/lib/resend";
 
 const CRON_SECRET = process.env.CRON_SECRET;
-
 const TIMEZONE = "Europe/Zagreb";
+const EMAIL_ERROR_MAX_LENGTH = 500;
 
 /**
  * Returns tomorrow's date window in UTC as ISO strings, based on Europe/Zagreb calendar.
@@ -37,6 +38,13 @@ function getTomorrowWindowInZagreb(): { startIso: string; endIso: string } {
   return { startIso, endIso };
 }
 
+type AppointmentRow = {
+  id: string;
+  owner_id: string;
+  starts_at: string;
+  email: string | null;
+};
+
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
 
@@ -57,7 +65,7 @@ export async function GET(request: NextRequest) {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("appointments")
-    .select("id, starts_at, email")
+    .select("id, owner_id, starts_at, email")
     .gte("starts_at", startIso)
     .lte("starts_at", endIso)
     .not("email", "is", null)
@@ -72,26 +80,78 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const rows = (data ?? []) as Array<{ id: string; starts_at: string; email: string | null }>;
+  const rows = (data ?? []) as AppointmentRow[];
   const withEmail = rows.filter((r) => r.email != null && r.email.trim() !== "");
-  const count = withEmail.length;
-  const sample = withEmail.slice(0, 10).map((r) => ({
-    id: r.id,
-    starts_at: r.starts_at,
-    email: r.email ?? "",
-  }));
+  const found = withEmail.length;
 
-  console.log("[cron/send-reminders] Cron executed successfully", {
-    window: { startIso, endIso },
-    count,
-  });
+  const resend = getResendClient();
+  const from = getRemindersFromEmail();
+  const subject = "Podsjetnik za termin sutra";
+  const html = "<p>Ovo je podsjetnik za vaš termin sutra.</p>";
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const appointment of withEmail) {
+    const to = appointment.email!.trim();
+    let sendError: string | null = null;
+
+    try {
+      const result = await resend.emails.send({
+        from,
+        to,
+        subject,
+        html,
+      });
+      if (result.error) {
+        sendError =
+          typeof result.error.message === "string"
+            ? result.error.message
+            : JSON.stringify(result.error);
+      }
+    } catch (err) {
+      sendError = err instanceof Error ? err.message : String(err);
+    }
+
+    if (sendError) {
+      failed += 1;
+      console.warn("[cron/send-reminders] Send failed", {
+        appointmentId: appointment.id,
+        error: sendError,
+      });
+      const truncated =
+        sendError.length > EMAIL_ERROR_MAX_LENGTH
+          ? sendError.slice(0, EMAIL_ERROR_MAX_LENGTH)
+          : sendError;
+      await supabase
+        .from("appointments")
+        .update({ email_error: truncated })
+        .eq("id", appointment.id)
+        .eq("owner_id", appointment.owner_id);
+      continue;
+    }
+
+    sent += 1;
+    console.log("[cron/send-reminders] Sent", {
+      appointmentId: appointment.id,
+      email: to,
+    });
+    await supabase
+      .from("appointments")
+      .update({ email_sent_at: new Date().toISOString(), email_error: null })
+      .eq("id", appointment.id)
+      .eq("owner_id", appointment.owner_id);
+  }
+
+  console.log("[cron/send-reminders] Summary", { found, sent, failed });
 
   return NextResponse.json(
     {
       ok: true,
       window: { startIso, endIso },
-      count,
-      sample,
+      found,
+      sent,
+      failed,
     },
     { status: 200 }
   );
