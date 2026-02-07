@@ -95,7 +95,7 @@ function buildReminderHtml(appointment: AppointmentRow): string {
     `<p><strong>Datum i vrijeme:</strong> ${escapeHtml(formatStartsAtInZagreb(appointment.starts_at))}</p>`
   );
   parts.push("<hr>");
-  parts.push('<p><small>Ovaj e-mail poslan je automatski. Ne odgovarajte na njega.</small></p>');
+  parts.push('<p><small>Ovu poruku ste dobili jer je termin unesen u Vizi Podsjetnike.</small></p>');
   return parts.join("\n");
 }
 
@@ -116,7 +116,7 @@ function buildReminder2hHtml(appointment: AppointmentRow): string {
     `<p><strong>Datum i vrijeme:</strong> ${escapeHtml(formatStartsAtInZagreb(appointment.starts_at))}</p>`
   );
   parts.push("<hr>");
-  parts.push('<p><small>Ovaj e-mail poslan je automatski. Ne odgovarajte na njega.</small></p>');
+  parts.push('<p><small>Ovu poruku ste dobili jer je termin unesen u Vizi Podsjetnike.</small></p>');
   return parts.join("\n");
 }
 
