@@ -45,7 +45,56 @@ type AppointmentRow = {
   owner_id: string;
   starts_at: string;
   email: string | null;
+  title?: string | null;
 };
+
+function formatStartsAtInZagreb(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleString("hr-HR", {
+    timeZone: TIMEZONE,
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+function formatTimeInZagreb(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleTimeString("hr-HR", {
+    timeZone: TIMEZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function buildReminderSubject(appointment: AppointmentRow): string {
+  const timeStr = formatTimeInZagreb(appointment.starts_at);
+  return `Podsjetnik za termin sutra u ${timeStr}`;
+}
+
+function buildReminderHtml(appointment: AppointmentRow): string {
+  const parts: string[] = [
+    "<p><strong>Vizi Podsjetnici</strong></p>",
+    "<p>Podsjetnik: imate termin sutra.</p>",
+    "<hr>",
+  ];
+  if (appointment.title != null && appointment.title.trim() !== "") {
+    parts.push(`<p><strong>Termin:</strong> ${escapeHtml(appointment.title.trim())}</p>`);
+  }
+  parts.push(
+    `<p><strong>Datum i vrijeme:</strong> ${escapeHtml(formatStartsAtInZagreb(appointment.starts_at))}</p>`
+  );
+  parts.push("<hr>");
+  parts.push('<p><small>Ovaj e-mail poslan je automatski. Ne odgovarajte na njega.</small></p>');
+  return parts.join("\n");
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -105,7 +154,7 @@ async function runSendReminders(
 ) {
   const { data, error } = await supabase
     .from("appointments")
-    .select("id, owner_id, starts_at, email")
+    .select("id, owner_id, starts_at, email, title")
     .gte("starts_at", startIso)
     .lte("starts_at", endIso)
     .not("email", "is", null)
@@ -129,14 +178,14 @@ async function runSendReminders(
 
   const resend = getResendClient();
   const from = getRemindersFromEmail();
-  const subject = "Podsjetnik za termin sutra";
-  const html = "<p>Ovo je podsjetnik za vaš termin sutra.</p>";
 
   let sent = 0;
   let failed = 0;
 
   for (const appointment of withEmail) {
     const to = appointment.email!.trim();
+    const subject = buildReminderSubject(appointment);
+    const html = buildReminderHtml(appointment);
     let sendError: string | null = null;
 
     try {
