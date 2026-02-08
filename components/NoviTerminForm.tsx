@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Calendar, Clock } from "lucide-react";
 
 export type TerminFormInitialValues = {
   title: string;
@@ -20,10 +21,38 @@ type NoviTerminFormProps = {
 const inputClassName =
   "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 sm:text-sm";
 
+/** Right-aligned icon button for date/time inputs; focuses input and opens native picker when available. */
+function PickerTrigger({
+  icon: Icon,
+  inputRef,
+  "aria-label": ariaLabel,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  "aria-label": string;
+}) {
+  return (
+    <button
+      type="button"
+      tabIndex={-1}
+      aria-label={ariaLabel}
+      className="absolute right-0 top-1 flex h-8 w-10 items-center justify-center rounded-r-md border-l border-gray-300 bg-gray-50 px-2.5 text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:ring-inset"
+      onClick={() => {
+        inputRef.current?.focus();
+        (inputRef.current as HTMLInputElement & { showPicker?: () => void })?.showPicker?.();
+      }}
+    >
+      <Icon className="h-4 w-4" />
+    </button>
+  );
+}
+
 export function NoviTerminForm({ appointmentId, initialValues }: NoviTerminFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const isEdit = !!appointmentId;
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const timeInputRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -149,14 +178,22 @@ export function NoviTerminForm({ appointmentId, initialValues }: NoviTerminFormP
           >
             Datum termina
           </label>
-          <input
-            id="datum-termina"
-            name="date"
-            type="date"
-            required
-            defaultValue={initialValues?.date}
-            className={inputClassName}
-          />
+          <div className="relative">
+            <input
+              id="datum-termina"
+              ref={dateInputRef}
+              name="date"
+              type="date"
+              required
+              defaultValue={initialValues?.date}
+              className={`${inputClassName} pr-10`}
+            />
+            <PickerTrigger
+              icon={Calendar}
+              inputRef={dateInputRef}
+              aria-label="Odaberi datum"
+            />
+          </div>
         </div>
 
         <div>
@@ -166,14 +203,22 @@ export function NoviTerminForm({ appointmentId, initialValues }: NoviTerminFormP
           >
             Vrijeme termina
           </label>
-          <input
-            id="vrijeme-termina"
-            name="time"
-            type="time"
-            required
-            defaultValue={initialValues?.time}
-            className={inputClassName}
-          />
+          <div className="relative">
+            <input
+              id="vrijeme-termina"
+              ref={timeInputRef}
+              name="time"
+              type="time"
+              required
+              defaultValue={initialValues?.time}
+              className={`${inputClassName} pr-10`}
+            />
+            <PickerTrigger
+              icon={Clock}
+              inputRef={timeInputRef}
+              aria-label="Odaberi vrijeme"
+            />
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
