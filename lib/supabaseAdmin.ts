@@ -7,6 +7,9 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
  * Server-only Supabase admin client using the service role key.
  * Bypasses RLS; use only in server components / API routes.
  * Never expose this client or the service role key to the client.
+ *
+ * When querying tenant-scoped data (e.g. appointments), always filter by
+ * owner_id using the current user's id from session. No exceptions.
  */
 export function getSupabaseAdmin() {
   if (!supabaseUrl || !supabaseServiceRoleKey) {

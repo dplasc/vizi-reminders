@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
-import { mockAppointments, type Appointment } from "@/lib/mockAppointments";
+import { type Appointment } from "@/lib/mockAppointments";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,12 +36,16 @@ function mapDbRowToAppointment(row: DbAppointmentRow): Appointment {
   };
 }
 
-async function fetchAppointmentsForUser(userId: string): Promise<Appointment[]> {
+/**
+ * Fetches appointments for the given owner only.
+ * Uses service-role client; owner_id filter is mandatory for tenant isolation.
+ */
+async function fetchAppointmentsForUser(ownerId: string): Promise<Appointment[]> {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("appointments")
     .select("id, owner_id, title, email, starts_at, status, email_sent_at, email_sent_2h_at, email_error")
-    .eq("owner_id", userId)
+    .eq("owner_id", ownerId)
     .order("starts_at", { ascending: true });
 
   if (error) {
@@ -116,19 +120,18 @@ const REMINDER_2H_STATUS_LABELS: Record<Reminder2hStatus, string> = {
 export default async function TerminiPage() {
   const cookieStore = await cookies();
   const session = cookieStore.get(SESSION_COOKIE_NAME);
-  const userId = session?.value;
+  const ownerId = session?.value?.trim() ?? null;
 
   let appointments: Appointment[];
 
-  if (!userId) {
-    console.error("[termini] No session userId; using mock fallback");
-    appointments = mockAppointments;
+  if (!ownerId) {
+    appointments = [];
   } else {
     try {
-      appointments = await fetchAppointmentsForUser(userId);
+      appointments = await fetchAppointmentsForUser(ownerId);
     } catch (err) {
       console.error("[termini] Failed to fetch appointments:", err);
-      appointments = mockAppointments;
+      appointments = [];
     }
   }
 
