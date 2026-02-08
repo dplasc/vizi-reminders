@@ -1,8 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Clock } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 export type TerminFormInitialValues = {
   title: string;
@@ -21,40 +26,25 @@ type NoviTerminFormProps = {
 const inputClassName =
   "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 sm:text-sm";
 
-/** Right-aligned icon button for time input; focuses input and opens native time picker. */
-function TimePickerTrigger({
-  inputRef,
-}: {
-  inputRef: React.RefObject<HTMLInputElement | null>;
-}) {
-  return (
-    <button
-      type="button"
-      tabIndex={-1}
-      aria-label="Odaberi vrijeme"
-      className="absolute right-0 top-1 flex h-8 w-10 items-center justify-center rounded-r-md border-l border-gray-300 bg-gray-50 px-2.5 text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:ring-inset"
-      onClick={() => {
-        const input = inputRef.current;
-        if (!input) return;
-        input.focus();
-        const withPicker = input as HTMLInputElement & { showPicker?: () => void };
-        if (typeof withPicker.showPicker === "function") {
-          withPicker.showPicker();
-        } else {
-          input.click();
-        }
-      }}
-    >
-      <Clock className="h-4 w-4" />
-    </button>
-  );
-}
+/** Time options in 15-minute increments: 00:00, 00:15, ... 23:45 */
+const TIME_OPTIONS = (() => {
+  const options: string[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      options.push(
+        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+      );
+    }
+  }
+  return options;
+})();
 
 export function NoviTerminForm({ appointmentId, initialValues }: NoviTerminFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [timeValue, setTimeValue] = useState(initialValues?.time ?? "");
+  const [timePopoverOpen, setTimePopoverOpen] = useState(false);
   const isEdit = !!appointmentId;
-  const timeInputRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -197,17 +187,46 @@ export function NoviTerminForm({ appointmentId, initialValues }: NoviTerminFormP
           >
             Vrijeme termina
           </label>
-          <div className="relative">
+          <div className="relative flex items-stretch">
             <input
               id="vrijeme-termina"
-              ref={timeInputRef}
               name="time"
-              type="time"
+              type="text"
+              value={timeValue}
+              readOnly
               required
-              defaultValue={initialValues?.time}
-              className={`${inputClassName} pr-10`}
+              placeholder="00:00"
+              autoComplete="off"
+              className={`${inputClassName} pr-10 rounded-r-none border-r-0`}
+              aria-label="Vrijeme termina"
             />
-            <TimePickerTrigger inputRef={timeInputRef} />
+            <Popover open={timePopoverOpen} onOpenChange={setTimePopoverOpen}>
+              <PopoverTrigger
+                type="button"
+                tabIndex={-1}
+                aria-label="Odaberi vrijeme"
+                className="flex w-10 shrink-0 items-center justify-center self-stretch rounded-r-md border border-gray-300 border-l-0 bg-gray-50 px-2.5 text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:ring-inset"
+              >
+                <Clock className="h-4 w-4" />
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-auto p-0">
+                <div className="max-h-[240px] overflow-y-auto py-1">
+                  {TIME_OPTIONS.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      className="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                      onClick={() => {
+                        setTimeValue(t);
+                        setTimePopoverOpen(false);
+                      }}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 
