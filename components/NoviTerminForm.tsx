@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { Calendar, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
 
 export type TerminFormInitialValues = {
   title: string;
@@ -21,28 +21,31 @@ type NoviTerminFormProps = {
 const inputClassName =
   "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 sm:text-sm";
 
-/** Right-aligned icon button for date/time inputs; focuses input and opens native picker when available. */
-function PickerTrigger({
-  icon: Icon,
+/** Right-aligned icon button for time input; focuses input and opens native time picker. */
+function TimePickerTrigger({
   inputRef,
-  "aria-label": ariaLabel,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
   inputRef: React.RefObject<HTMLInputElement | null>;
-  "aria-label": string;
 }) {
   return (
     <button
       type="button"
       tabIndex={-1}
-      aria-label={ariaLabel}
+      aria-label="Odaberi vrijeme"
       className="absolute right-0 top-1 flex h-8 w-10 items-center justify-center rounded-r-md border-l border-gray-300 bg-gray-50 px-2.5 text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:ring-inset"
       onClick={() => {
-        inputRef.current?.focus();
-        (inputRef.current as HTMLInputElement & { showPicker?: () => void })?.showPicker?.();
+        const input = inputRef.current;
+        if (!input) return;
+        input.focus();
+        const withPicker = input as HTMLInputElement & { showPicker?: () => void };
+        if (typeof withPicker.showPicker === "function") {
+          withPicker.showPicker();
+        } else {
+          input.click();
+        }
       }}
     >
-      <Icon className="h-4 w-4" />
+      <Clock className="h-4 w-4" />
     </button>
   );
 }
@@ -51,7 +54,6 @@ export function NoviTerminForm({ appointmentId, initialValues }: NoviTerminFormP
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const isEdit = !!appointmentId;
-  const dateInputRef = useRef<HTMLInputElement>(null);
   const timeInputRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -178,22 +180,14 @@ export function NoviTerminForm({ appointmentId, initialValues }: NoviTerminFormP
           >
             Datum termina
           </label>
-          <div className="relative">
-            <input
-              id="datum-termina"
-              ref={dateInputRef}
-              name="date"
-              type="date"
-              required
-              defaultValue={initialValues?.date}
-              className={`${inputClassName} pr-10`}
-            />
-            <PickerTrigger
-              icon={Calendar}
-              inputRef={dateInputRef}
-              aria-label="Odaberi datum"
-            />
-          </div>
+          <input
+            id="datum-termina"
+            name="date"
+            type="date"
+            required
+            defaultValue={initialValues?.date}
+            className={inputClassName}
+          />
         </div>
 
         <div>
@@ -213,11 +207,7 @@ export function NoviTerminForm({ appointmentId, initialValues }: NoviTerminFormP
               defaultValue={initialValues?.time}
               className={`${inputClassName} pr-10`}
             />
-            <PickerTrigger
-              icon={Clock}
-              inputRef={timeInputRef}
-              aria-label="Odaberi vrijeme"
-            />
+            <TimePickerTrigger inputRef={timeInputRef} />
           </div>
         </div>
 
