@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { type Appointment } from "@/lib/mockAppointments";
+import { zagrebDateKey } from "@/lib/formatZagreb";
+import { ZagrebTime } from "@/components/ZagrebTime";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,21 +56,6 @@ async function fetchAppointmentsForUser(ownerId: string): Promise<Appointment[]>
   }
 
   return (data ?? []).map((row) => mapDbRowToAppointment(row as DbAppointmentRow));
-}
-
-function getLocalDateKey(iso: string): string {
-  const d = new Date(iso);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  const h = String(d.getHours()).padStart(2, "0");
-  const min = String(d.getMinutes()).padStart(2, "0");
-  return `${h}:${min}`;
 }
 
 function getSectionTitle(
@@ -136,14 +123,12 @@ export default async function TerminiPage() {
   }
 
   const now = new Date();
-  const todayKey = getLocalDateKey(now.toISOString());
-  const tomorrowDate = new Date(now);
-  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-  const tomorrowKey = getLocalDateKey(tomorrowDate.toISOString());
+  const todayKey = zagrebDateKey(now.toISOString());
+  const tomorrowKey = zagrebDateKey(new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString());
 
   const byDate = new Map<string, Appointment[]>();
   for (const a of appointments) {
-    const key = getLocalDateKey(a.startAt);
+    const key = zagrebDateKey(a.startAt);
     const list = byDate.get(key) ?? [];
     list.push(a);
     byDate.set(key, list);
@@ -201,7 +186,7 @@ export default async function TerminiPage() {
                       className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 sm:flex-nowrap"
                     >
                       <span className="text-sm font-medium text-gray-900 tabular-nums w-12 shrink-0">
-                        {formatTime(a.startAt)}
+                        <ZagrebTime iso={a.startAt} />
                       </span>
                       <span className="text-sm text-gray-900 flex-1 min-w-0">
                         {a.clientName}
@@ -274,7 +259,7 @@ export default async function TerminiPage() {
                       className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 bg-white sm:flex-nowrap"
                     >
                       <span className="text-sm font-medium text-gray-900 tabular-nums w-12 shrink-0">
-                        {formatTime(a.startAt)}
+                        <ZagrebTime iso={a.startAt} />
                       </span>
                       <span className="text-sm text-gray-900 flex-1 min-w-0">
                         {a.clientName}

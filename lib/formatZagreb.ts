@@ -24,3 +24,8 @@ export function formatTimeOnlyZagreb(value: string | Date): string {
 export function formatDateOnlyZagreb(value: string | Date): string {
   return formatInTimeZone(toDate(value), ZAGREB, "dd.MM.yyyy.");
 }
+
+/** Date key for grouping: "yyyy-MM-dd" in Europe/Zagreb. */
+export function zagrebDateKey(iso: string | Date): string {
+  return formatInTimeZone(toDate(iso), ZAGREB, "yyyy-MM-dd");
+}
