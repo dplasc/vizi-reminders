@@ -179,7 +179,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function runSendReminders(
+export async function runSendReminders(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   startIso: string,
   endIso: string
