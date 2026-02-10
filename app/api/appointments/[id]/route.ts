@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { zagrebLocalToUtcIso } from "@/lib/datetime/zagrebLocalToUtcIso";
 
 const SESSION_COOKIE_NAME = "vizi_reminders_session";
 
@@ -70,7 +71,8 @@ export async function PATCH(
   const email = emailRaw || null;
   const date = (body.date as string).trim();
   const time = (body.time as string).trim();
-  const startsAt = new Date(`${date}T${time}`).toISOString();
+  // UI is Europe/Zagreb; DB stores UTC timestamptz.
+  const startsAt = zagrebLocalToUtcIso(date, time);
   const status = email ? "ready" : "no_email";
 
   const supabase = getSupabaseAdmin();

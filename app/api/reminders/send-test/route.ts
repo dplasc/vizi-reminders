@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { getResendClient, getRemindersFromEmail } from "@/lib/resend";
+import { formatDateOnlyZagreb, formatTimeOnlyZagreb } from "@/lib/formatZagreb";
 
 const SESSION_COOKIE_NAME = "vizi_reminders_session";
 const EMAIL_ERROR_MAX_LENGTH = 500;
@@ -16,21 +17,7 @@ type AppointmentRow = {
   email_error: string | null;
 };
 
-function formatDateCroatian(iso: string): string {
-  const d = new Date(iso);
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  return `${day}.${month}.${year}.`;
-}
-
-function formatTimeCroatian(iso: string): string {
-  const d = new Date(iso);
-  const h = String(d.getHours()).padStart(2, "0");
-  const min = String(d.getMinutes()).padStart(2, "0");
-  return `${h}:${min}`;
-}
-
+// DB stores UTC; email displays Europe/Zagreb to match UI.
 function buildReminderHtml(params: {
   title: string;
   dateStr: string;
@@ -139,8 +126,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const dateStr = formatDateCroatian(row.starts_at);
-  const timeStr = formatTimeCroatian(row.starts_at);
+  const dateStr = formatDateOnlyZagreb(row.starts_at);
+  const timeStr = formatTimeOnlyZagreb(row.starts_at);
   const subject = `Podsjetnik za termin: ${row.title}`;
   const html = buildReminderHtml({ title: row.title, dateStr, timeStr });
 
