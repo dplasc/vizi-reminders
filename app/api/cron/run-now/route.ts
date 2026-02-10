@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { runSendReminders, getTomorrowWindowInZagreb } from "../send-reminders/route";
+import { runSendReminders, getTomorrowWindowInZagreb } from "../_lib/remindersRunner";
 
 export async function GET(request: Request) {
   const secret = request.headers.get("x-cron-secret");
