@@ -14,7 +14,7 @@ const ADVISORY_LOCK_KEY = 912345;
  * start = YYYY-MM-DDT00:00:00.000Z and end = YYYY-MM-DDT23:59:59.999Z
  * so that starts_at within this range falls on "tomorrow" in Zagreb.
  */
-function getTomorrowWindowInZagreb(): { startIso: string; endIso: string } {
+export function getTomorrowWindowInZagreb(): { startIso: string; endIso: string } {
   const now = new Date();
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: TIMEZONE,
