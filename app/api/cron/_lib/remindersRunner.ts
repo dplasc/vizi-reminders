@@ -3,6 +3,7 @@ import { getResendClient, getRemindersFromEmail } from "@/lib/resend";
 const TIMEZONE = "Europe/Zagreb";
 const EMAIL_ERROR_MAX_LENGTH = 500;
 const BATCH_LIMIT = 200;
+const SENDER_FALLBACK = "Vizi Podsjetnici";
 
 /**
  * Returns tomorrow's date window in UTC as ISO strings, based on Europe/Zagreb calendar.
@@ -55,6 +56,26 @@ type AppointmentRow = {
   title?: string | null;
 };
 
+/** Fetch display_name for owner_ids; returns map id -> name (fallback SENDER_FALLBACK if missing/empty). */
+async function getDisplayNamesByOwnerIds(
+  supabase: { from: (table: string) => any },
+  ownerIds: string[]
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const unique = [...new Set(ownerIds)];
+  for (const id of unique) map.set(id, SENDER_FALLBACK);
+  if (unique.length === 0) return map;
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, display_name")
+    .in("id", unique);
+  for (const row of data ?? []) {
+    const name = (row as { id: string; display_name?: string | null }).display_name;
+    map.set((row as { id: string }).id, name?.trim() ? name.trim() : SENDER_FALLBACK);
+  }
+  return map;
+}
+
 function formatStartsAtInZagreb(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleString("hr-HR", {
@@ -73,14 +94,14 @@ function formatTimeInZagreb(iso: string): string {
   });
 }
 
-function buildReminderSubject(appointment: AppointmentRow): string {
-  const timeStr = formatTimeInZagreb(appointment.starts_at);
-  return `Podsjetnik za termin sutra u ${timeStr}`;
+function buildReminderSubject(_appointment: AppointmentRow, senderName: string): string {
+  return `Podsjetnik — ${senderName}`;
 }
 
-function buildReminderHtml(appointment: AppointmentRow): string {
+function buildReminderHtml(appointment: AppointmentRow, senderName: string): string {
   const parts: string[] = [
     "<p><strong>Vizi Podsjetnici</strong></p>",
+    `<p>Od: ${escapeHtml(senderName)}</p>`,
     "<p>Podsjetnik: imate termin sutra.</p>",
     "<hr>",
   ];
@@ -95,13 +116,14 @@ function buildReminderHtml(appointment: AppointmentRow): string {
   return parts.join("\n");
 }
 
-function buildReminder2hSubject(): string {
-  return "Podsjetnik: termin uskoro (u 2 sata)";
+function buildReminder2hSubject(senderName: string): string {
+  return `Podsjetnik: termin uskoro (2h) — ${senderName}`;
 }
 
-function buildReminder2hHtml(appointment: AppointmentRow): string {
+function buildReminder2hHtml(appointment: AppointmentRow, senderName: string): string {
   const parts: string[] = [
     "<p><strong>Vizi Podsjetnici</strong></p>",
+    `<p>Od: ${escapeHtml(senderName)}</p>`,
     "<p>Podsjetnik: vaš termin počinje za oko 2 sata.</p>",
     "<hr>",
   ];
@@ -155,6 +177,11 @@ export async function runSendReminders(
   const withEmail = rows.filter((r) => r.email != null && r.email.trim() !== "");
   const found = withEmail.length;
 
+  const displayNamesTomorrow = await getDisplayNamesByOwnerIds(
+    supabase,
+    withEmail.map((r) => r.owner_id)
+  );
+
   const resend = getResendClient();
   const from = getRemindersFromEmail();
 
@@ -163,8 +190,9 @@ export async function runSendReminders(
 
   for (const appointment of withEmail) {
     const to = appointment.email!.trim();
-    const subject = buildReminderSubject(appointment);
-    const html = buildReminderHtml(appointment);
+    const senderName = displayNamesTomorrow.get(appointment.owner_id) ?? SENDER_FALLBACK;
+    const subject = buildReminderSubject(appointment, senderName);
+    const html = buildReminderHtml(appointment, senderName);
     let sendError: string | null = null;
 
     try {
@@ -248,13 +276,20 @@ export async function runSendReminders(
   const rows2h = (data2h ?? []) as AppointmentRow[];
   const withEmail2h = rows2h.filter((r) => r.email != null && r.email.trim() !== "");
   const found2h = withEmail2h.length;
+
+  const displayNames2h = await getDisplayNamesByOwnerIds(
+    supabase,
+    withEmail2h.map((r) => r.owner_id)
+  );
+
   let sent2h = 0;
   let failed2h = 0;
 
   for (const appointment of withEmail2h) {
     const to = appointment.email!.trim();
-    const subject = buildReminder2hSubject();
-    const html = buildReminder2hHtml(appointment);
+    const senderName = displayNames2h.get(appointment.owner_id) ?? SENDER_FALLBACK;
+    const subject = buildReminder2hSubject(senderName);
+    const html = buildReminder2hHtml(appointment, senderName);
     let sendError: string | null = null;
 
     try {

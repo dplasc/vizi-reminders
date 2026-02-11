@@ -17,19 +17,23 @@ type AppointmentRow = {
   email_error: string | null;
 };
 
+const SENDER_FALLBACK = "Vizi Podsjetnici";
+
 // DB stores UTC; email displays Europe/Zagreb to match UI.
 function buildReminderHtml(params: {
+  senderName: string;
   title: string;
   dateStr: string;
   timeStr: string;
 }): string {
-  const { title, dateStr, timeStr } = params;
+  const { senderName, title, dateStr, timeStr } = params;
   return `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
 <body style="font-family: sans-serif; line-height: 1.5; color: #333;">
   <p>Poštovani/na,</p>
+  <p>Od: ${escapeHtml(senderName)}</p>
   <p>Podsjetnik: imate termin ${dateStr} u ${timeStr}.</p>
   <p>Naziv: <strong>${escapeHtml(title)}</strong></p>
   <p style="margin-top: 2em; font-size: 0.9em; color: #666;">
@@ -126,10 +130,23 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("id", userId)
+    .maybeSingle();
+  const displayName = (profile as { display_name?: string | null } | null)?.display_name;
+  const senderName = displayName?.trim() ? displayName.trim() : SENDER_FALLBACK;
+
   const dateStr = formatDateOnlyZagreb(row.starts_at);
   const timeStr = formatTimeOnlyZagreb(row.starts_at);
-  const subject = `Podsjetnik za termin: ${row.title}`;
-  const html = buildReminderHtml({ title: row.title, dateStr, timeStr });
+  const subject = `Podsjetnik — ${senderName}`;
+  const html = buildReminderHtml({
+    senderName,
+    title: row.title ?? "",
+    dateStr,
+    timeStr,
+  });
 
   let sendError: string | null = null;
   try {
