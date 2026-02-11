@@ -72,11 +72,13 @@ async function getDisplayNamesByOwnerIds(
       .in("id", unique);
     for (const row of data ?? []) {
       const r = row as { id: string; full_name?: string | null; username?: string | null };
-      const fullName = r.full_name?.trim() ?? "";
-      const username = r.username?.trim() ?? "";
-      const name =
-        fullName.length > 0 ? fullName : username.length > 0 ? username : SENDER_FALLBACK;
-      map.set(r.id, name);
+      const u = (r.username ?? "").trim();
+      const f = (r.full_name ?? "").trim();
+      let senderName = SENDER_FALLBACK;
+      if (u && f) senderName = `${u} (${f})`;
+      else if (u) senderName = u;
+      else if (f) senderName = f;
+      map.set(r.id, senderName);
     }
   } catch (e) {
     console.warn("[cron/send-reminders] Profiles query failed, using fallback:", e instanceof Error ? e.message : String(e));
