@@ -65,13 +65,17 @@ async function getDisplayNamesByOwnerIds(
   const unique = ownerIds.filter((id, idx, arr) => arr.indexOf(id) === idx);
   for (const id of unique) map.set(id, SENDER_FALLBACK);
   if (unique.length === 0) return map;
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, display_name")
-    .in("id", unique);
-  for (const row of data ?? []) {
-    const name = (row as { id: string; display_name?: string | null }).display_name;
-    map.set((row as { id: string }).id, name?.trim() ? name.trim() : SENDER_FALLBACK);
+  try {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, display_name")
+      .in("id", unique);
+    for (const row of data ?? []) {
+      const name = (row as { id: string; display_name?: string | null }).display_name;
+      map.set((row as { id: string }).id, name?.trim() ? name.trim() : SENDER_FALLBACK);
+    }
+  } catch (e) {
+    console.warn("[cron/send-reminders] Profiles query failed, using fallback:", e instanceof Error ? e.message : String(e));
   }
   return map;
 }
@@ -100,7 +104,7 @@ function buildReminderSubject(_appointment: AppointmentRow, senderName: string):
 
 function buildReminderHtml(appointment: AppointmentRow, senderName: string): string {
   const parts: string[] = [
-    "<p><strong>Vizi Podsjetnici</strong></p>",
+    `<p><strong>${escapeHtml(senderName)}</strong></p>`,
     `<p>Od: ${escapeHtml(senderName)}</p>`,
     "<p>Podsjetnik: imate termin sutra.</p>",
     "<hr>",
@@ -122,7 +126,7 @@ function buildReminder2hSubject(senderName: string): string {
 
 function buildReminder2hHtml(appointment: AppointmentRow, senderName: string): string {
   const parts: string[] = [
-    "<p><strong>Vizi Podsjetnici</strong></p>",
+    `<p><strong>${escapeHtml(senderName)}</strong></p>`,
     `<p>Od: ${escapeHtml(senderName)}</p>`,
     "<p>Podsjetnik: vaš termin počinje za oko 2 sata.</p>",
     "<hr>",
