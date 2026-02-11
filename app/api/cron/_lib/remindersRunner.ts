@@ -62,7 +62,7 @@ async function getDisplayNamesByOwnerIds(
   ownerIds: string[]
 ): Promise<Map<string, string>> {
   const map = new Map<string, string>();
-  const unique = [...new Set(ownerIds)];
+  const unique = ownerIds.filter((id, idx, arr) => arr.indexOf(id) === idx);
   for (const id of unique) map.set(id, SENDER_FALLBACK);
   if (unique.length === 0) return map;
   const { data } = await supabase
