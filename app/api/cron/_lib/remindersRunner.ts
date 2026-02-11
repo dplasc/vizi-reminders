@@ -56,7 +56,7 @@ type AppointmentRow = {
   title?: string | null;
 };
 
-/** Fetch display_name for owner_ids; returns map id -> name (fallback SENDER_FALLBACK if missing/empty). */
+/** Fetch sender name for owner_ids; returns map id -> name (fallback SENDER_FALLBACK if missing/empty). */
 async function getDisplayNamesByOwnerIds(
   supabase: { from: (table: string) => any },
   ownerIds: string[]
@@ -68,11 +68,15 @@ async function getDisplayNamesByOwnerIds(
   try {
     const { data } = await supabase
       .from("profiles")
-      .select("id, display_name")
+      .select("id, full_name, username")
       .in("id", unique);
     for (const row of data ?? []) {
-      const name = (row as { id: string; display_name?: string | null }).display_name;
-      map.set((row as { id: string }).id, name?.trim() ? name.trim() : SENDER_FALLBACK);
+      const r = row as { id: string; full_name?: string | null; username?: string | null };
+      const fullName = r.full_name?.trim() ?? "";
+      const username = r.username?.trim() ?? "";
+      const name =
+        fullName.length > 0 ? fullName : username.length > 0 ? username : SENDER_FALLBACK;
+      map.set(r.id, name);
     }
   } catch (e) {
     console.warn("[cron/send-reminders] Profiles query failed, using fallback:", e instanceof Error ? e.message : String(e));
