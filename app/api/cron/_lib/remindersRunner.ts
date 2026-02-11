@@ -105,7 +105,7 @@ function formatTimeInZagreb(iso: string): string {
 }
 
 function buildReminderSubject(_appointment: AppointmentRow, senderName: string): string {
-  return `Podsjetnik — ${senderName}`;
+  return `${senderName} — Podsjetnik (sutra)`;
 }
 
 function buildReminderHtml(appointment: AppointmentRow, senderName: string): string {
@@ -127,7 +127,7 @@ function buildReminderHtml(appointment: AppointmentRow, senderName: string): str
 }
 
 function buildReminder2hSubject(senderName: string): string {
-  return `Podsjetnik: termin uskoro (2h) — ${senderName}`;
+  return `${senderName} — Podsjetnik: termin uskoro (2h)`;
 }
 
 function buildReminder2hHtml(appointment: AppointmentRow, senderName: string): string {
