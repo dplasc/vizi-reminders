@@ -169,6 +169,23 @@ export default async function TerminiPage() {
           </Link>
         </header>
 
+        {/* Reminders header block */}
+        <Card className="border-gray-200 bg-white">
+          <CardContent className="flex flex-col gap-1.5 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-900">
+                🔔 Automatski email podsjetnici su aktivni (1 dan + 2 sata prije termina)
+              </p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                Ne moraš ručno podsjećati klijente.
+              </p>
+            </div>
+            <Badge variant="secondary" className="shrink-0 bg-gray-100 text-gray-700 border-gray-200">
+              PRO 500
+            </Badge>
+          </CardContent>
+        </Card>
+
         {/* Grouped list */}
         <section className="space-y-6">
           {sortedKeys.map((dateKey) => {
