@@ -174,10 +174,10 @@ export default async function TerminiPage() {
           <CardContent className="flex flex-col gap-1.5 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-gray-900">
-                🔔 Automatski email podsjetnici su aktivni (1 dan + 2 sata prije termina)
+                🔔 Automatski email podsjetnici (1 dan + 2 sata prije termina)
               </p>
               <p className="mt-0.5 text-xs text-gray-500">
-                Ne moraš ručno podsjećati klijente.
+                Dostupno u PRO 500 planu.
               </p>
             </div>
             <Badge variant="secondary" className="shrink-0 bg-gray-100 text-gray-700 border-gray-200">
