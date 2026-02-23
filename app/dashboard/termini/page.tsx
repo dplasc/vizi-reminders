@@ -182,22 +182,22 @@ export default async function TerminiPage() {
         </header>
 
         {/* Reminder Performance */}
-        <Card className="border-gray-200 bg-white">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Reminder Performance</CardTitle>
-            <p className="text-xs text-gray-500 font-normal">Ovaj mjesec</p>
+        <Card className="bg-white shadow-sm">
+          <CardHeader className="p-6 pb-2">
+            <CardTitle className="text-base">📊 Učinak podsjetnika</CardTitle>
+            <p className="text-sm text-muted-foreground">Ovaj mjesec</p>
           </CardHeader>
-          <CardContent className="pt-0">
-            <ul className="space-y-1.5 text-sm">
-              <li className="flex justify-between">
-                <span className="text-gray-600">24h poslano</span>
-                <span className="font-medium tabular-nums">{sent24hThisMonth}</span>
-              </li>
-              <li className="flex justify-between">
-                <span className="text-gray-600">2h poslano</span>
-                <span className="font-medium tabular-nums">{sent2hThisMonth}</span>
-              </li>
-            </ul>
+          <CardContent className="p-6 pt-4">
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <p className="text-sm text-muted-foreground">24h podsjetnici</p>
+                <p className="text-3xl font-semibold tabular-nums">{sent24hThisMonth}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">2h podsjetnici</p>
+                <p className="text-3xl font-semibold tabular-nums">{sent2hThisMonth}</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
