@@ -150,6 +150,18 @@ export default async function TerminiPage() {
 
   const todayAppointments = byDate.get(todayKey) ?? [];
 
+  const currentMonthKey = zagrebDateKey(now.toISOString()).substring(0, 7);
+  let sent24hThisMonth = 0;
+  let sent2hThisMonth = 0;
+  for (const a of appointments) {
+    if (a.email_sent_at != null && zagrebDateKey(a.email_sent_at).substring(0, 7) === currentMonthKey) {
+      sent24hThisMonth += 1;
+    }
+    if (a.email_sent_2h_at != null && zagrebDateKey(a.email_sent_2h_at).substring(0, 7) === currentMonthKey) {
+      sent2hThisMonth += 1;
+    }
+  }
+
   return (
     <main className="min-h-screen bg-gray-50 p-6 md:p-8">
       <div className="max-w-3xl mx-auto space-y-8">
@@ -168,6 +180,26 @@ export default async function TerminiPage() {
             + Novi termin
           </Link>
         </header>
+
+        {/* Reminder Performance */}
+        <Card className="border-gray-200 bg-white">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Reminder Performance</CardTitle>
+            <p className="text-xs text-gray-500 font-normal">Ovaj mjesec</p>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <ul className="space-y-1.5 text-sm">
+              <li className="flex justify-between">
+                <span className="text-gray-600">24h poslano</span>
+                <span className="font-medium tabular-nums">{sent24hThisMonth}</span>
+              </li>
+              <li className="flex justify-between">
+                <span className="text-gray-600">2h poslano</span>
+                <span className="font-medium tabular-nums">{sent2hThisMonth}</span>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
 
         {/* Reminders header block */}
         <Card className="border-gray-200 bg-white">
