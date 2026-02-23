@@ -56,24 +56,31 @@ type AppointmentRow = {
   title?: string | null;
 };
 
-type OwnerDisplay = { senderName: string; fullName: string };
+type OwnerDisplay = { senderName: string; fullName: string; displayLine: string };
 
-/** Fetch sender name and full name for owner_ids; returns map id -> { senderName, fullName }. */
+/** Fetch sender name, full name, and vCard display line for owner_ids; returns map id -> { senderName, fullName, displayLine }. */
 async function getDisplayNamesByOwnerIds(
   supabase: { from: (table: string) => any },
   ownerIds: string[]
 ): Promise<Map<string, OwnerDisplay>> {
   const map = new Map<string, OwnerDisplay>();
   const unique = ownerIds.filter((id, idx, arr) => arr.indexOf(id) === idx);
-  for (const id of unique) map.set(id, { senderName: SENDER_FALLBACK, fullName: SENDER_FALLBACK });
+  const fallback = { senderName: SENDER_FALLBACK, fullName: SENDER_FALLBACK, displayLine: SENDER_FALLBACK };
+  for (const id of unique) map.set(id, fallback);
   if (unique.length === 0) return map;
   try {
     const { data } = await supabase
       .from("profiles")
-      .select("id, full_name, username")
+      .select("id, full_name, username, headline, profession")
       .in("id", unique);
     for (const row of data ?? []) {
-      const r = row as { id: string; full_name?: string | null; username?: string | null };
+      const r = row as {
+        id: string;
+        full_name?: string | null;
+        username?: string | null;
+        headline?: string | null;
+        profession?: string | null;
+      };
       const u = (r.username ?? "").trim();
       const f = (r.full_name ?? "").trim();
       let senderName = SENDER_FALLBACK;
@@ -81,7 +88,11 @@ async function getDisplayNamesByOwnerIds(
       else if (u) senderName = u;
       else if (f) senderName = f;
       const fullName = f || senderName;
-      map.set(r.id, { senderName, fullName });
+      const h = (r.headline ?? "").trim();
+      const p = (r.profession ?? "").trim();
+      const title = h || p;
+      const displayLine = title ? `${fullName} — ${title}` : fullName;
+      map.set(r.id, { senderName, fullName, displayLine });
     }
   } catch (e) {
     console.warn("[cron/send-reminders] Profiles query failed, using fallback:", e instanceof Error ? e.message : String(e));
@@ -111,10 +122,10 @@ function buildReminderSubject(_appointment: AppointmentRow, senderName: string):
   return `${senderName} — Podsjetnik (sutra)`;
 }
 
-function buildReminderHtml(appointment: AppointmentRow, fullName: string): string {
+function buildReminderHtml(appointment: AppointmentRow, displayLine: string): string {
   const parts: string[] = [
     "<p><strong>Podsjetnik na vaš termin</strong></p>",
-    `<p>Kod: ${escapeHtml(fullName)}</p>`,
+    `<p>Vizitka: ${escapeHtml(displayLine)}</p>`,
     "<p>Podsjetnik: imate termin sutra.</p>",
     "<hr>",
   ];
@@ -133,10 +144,10 @@ function buildReminder2hSubject(senderName: string): string {
   return `${senderName} — Podsjetnik: termin uskoro (2h)`;
 }
 
-function buildReminder2hHtml(appointment: AppointmentRow, fullName: string): string {
+function buildReminder2hHtml(appointment: AppointmentRow, displayLine: string): string {
   const parts: string[] = [
     "<p><strong>Podsjetnik na vaš termin</strong></p>",
-    `<p>Kod: ${escapeHtml(fullName)}</p>`,
+    `<p>Vizitka: ${escapeHtml(displayLine)}</p>`,
     "<p>Podsjetnik: vaš termin počinje za oko 2 sata.</p>",
     "<hr>",
   ];
@@ -203,9 +214,9 @@ export async function runSendReminders(
 
   for (const appointment of withEmail) {
     const to = appointment.email!.trim();
-    const display = displayNamesTomorrow.get(appointment.owner_id) ?? { senderName: SENDER_FALLBACK, fullName: SENDER_FALLBACK };
+    const display = displayNamesTomorrow.get(appointment.owner_id) ?? { senderName: SENDER_FALLBACK, fullName: SENDER_FALLBACK, displayLine: SENDER_FALLBACK };
     const subject = buildReminderSubject(appointment, display.senderName);
-    const html = buildReminderHtml(appointment, display.fullName);
+    const html = buildReminderHtml(appointment, display.displayLine);
     let sendError: string | null = null;
 
     try {
@@ -300,9 +311,9 @@ export async function runSendReminders(
 
   for (const appointment of withEmail2h) {
     const to = appointment.email!.trim();
-    const display = displayNames2h.get(appointment.owner_id) ?? { senderName: SENDER_FALLBACK, fullName: SENDER_FALLBACK };
+    const display = displayNames2h.get(appointment.owner_id) ?? { senderName: SENDER_FALLBACK, fullName: SENDER_FALLBACK, displayLine: SENDER_FALLBACK };
     const subject = buildReminder2hSubject(display.senderName);
-    const html = buildReminder2hHtml(appointment, display.fullName);
+    const html = buildReminder2hHtml(appointment, display.displayLine);
     let sendError: string | null = null;
 
     try {
