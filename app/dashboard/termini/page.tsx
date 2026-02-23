@@ -85,9 +85,9 @@ function getReminderStatus(a: Appointment): ReminderStatus {
 }
 
 const REMINDER_STATUS_LABELS: Record<ReminderStatus, string> = {
-  sent: "Poslan",
-  error: "Greška",
-  pending: "Na čekanju",
+  sent: "24h Poslan",
+  error: "24h Greška",
+  pending: "24h Na čekanju",
 };
 
 type Reminder2hStatus = "sent" | "error" | "pending";
