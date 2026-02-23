@@ -56,14 +56,16 @@ type AppointmentRow = {
   title?: string | null;
 };
 
-/** Fetch sender name for owner_ids; returns map id -> name (fallback SENDER_FALLBACK if missing/empty). */
+type OwnerDisplay = { senderName: string; fullName: string };
+
+/** Fetch sender name and full name for owner_ids; returns map id -> { senderName, fullName }. */
 async function getDisplayNamesByOwnerIds(
   supabase: { from: (table: string) => any },
   ownerIds: string[]
-): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
+): Promise<Map<string, OwnerDisplay>> {
+  const map = new Map<string, OwnerDisplay>();
   const unique = ownerIds.filter((id, idx, arr) => arr.indexOf(id) === idx);
-  for (const id of unique) map.set(id, SENDER_FALLBACK);
+  for (const id of unique) map.set(id, { senderName: SENDER_FALLBACK, fullName: SENDER_FALLBACK });
   if (unique.length === 0) return map;
   try {
     const { data } = await supabase
@@ -78,7 +80,8 @@ async function getDisplayNamesByOwnerIds(
       if (u && f) senderName = `${u} (${f})`;
       else if (u) senderName = u;
       else if (f) senderName = f;
-      map.set(r.id, senderName);
+      const fullName = f || senderName;
+      map.set(r.id, { senderName, fullName });
     }
   } catch (e) {
     console.warn("[cron/send-reminders] Profiles query failed, using fallback:", e instanceof Error ? e.message : String(e));
@@ -108,10 +111,10 @@ function buildReminderSubject(_appointment: AppointmentRow, senderName: string):
   return `${senderName} — Podsjetnik (sutra)`;
 }
 
-function buildReminderHtml(appointment: AppointmentRow, senderName: string): string {
+function buildReminderHtml(appointment: AppointmentRow, fullName: string): string {
   const parts: string[] = [
-    `<p><strong>${escapeHtml(senderName)}</strong></p>`,
-    `<p>Od: ${escapeHtml(senderName)}</p>`,
+    "<p><strong>Podsjetnik na vaš termin</strong></p>",
+    `<p>Kod: ${escapeHtml(fullName)}</p>`,
     "<p>Podsjetnik: imate termin sutra.</p>",
     "<hr>",
   ];
@@ -130,10 +133,10 @@ function buildReminder2hSubject(senderName: string): string {
   return `${senderName} — Podsjetnik: termin uskoro (2h)`;
 }
 
-function buildReminder2hHtml(appointment: AppointmentRow, senderName: string): string {
+function buildReminder2hHtml(appointment: AppointmentRow, fullName: string): string {
   const parts: string[] = [
-    `<p><strong>${escapeHtml(senderName)}</strong></p>`,
-    `<p>Od: ${escapeHtml(senderName)}</p>`,
+    "<p><strong>Podsjetnik na vaš termin</strong></p>",
+    `<p>Kod: ${escapeHtml(fullName)}</p>`,
     "<p>Podsjetnik: vaš termin počinje za oko 2 sata.</p>",
     "<hr>",
   ];
@@ -200,9 +203,9 @@ export async function runSendReminders(
 
   for (const appointment of withEmail) {
     const to = appointment.email!.trim();
-    const senderName = displayNamesTomorrow.get(appointment.owner_id) ?? SENDER_FALLBACK;
-    const subject = buildReminderSubject(appointment, senderName);
-    const html = buildReminderHtml(appointment, senderName);
+    const display = displayNamesTomorrow.get(appointment.owner_id) ?? { senderName: SENDER_FALLBACK, fullName: SENDER_FALLBACK };
+    const subject = buildReminderSubject(appointment, display.senderName);
+    const html = buildReminderHtml(appointment, display.fullName);
     let sendError: string | null = null;
 
     try {
@@ -297,9 +300,9 @@ export async function runSendReminders(
 
   for (const appointment of withEmail2h) {
     const to = appointment.email!.trim();
-    const senderName = displayNames2h.get(appointment.owner_id) ?? SENDER_FALLBACK;
-    const subject = buildReminder2hSubject(senderName);
-    const html = buildReminder2hHtml(appointment, senderName);
+    const display = displayNames2h.get(appointment.owner_id) ?? { senderName: SENDER_FALLBACK, fullName: SENDER_FALLBACK };
+    const subject = buildReminder2hSubject(display.senderName);
+    const html = buildReminder2hHtml(appointment, display.fullName);
     let sendError: string | null = null;
 
     try {
