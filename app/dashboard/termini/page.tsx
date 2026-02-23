@@ -161,6 +161,7 @@ export default async function TerminiPage() {
       sent2hThisMonth += 1;
     }
   }
+  const totalSentThisMonth = sent24hThisMonth + sent2hThisMonth;
 
   return (
     <main className="min-h-screen bg-gray-50 p-6 md:p-8">
@@ -188,7 +189,7 @@ export default async function TerminiPage() {
             <p className="text-sm text-muted-foreground">Ovaj mjesec</p>
           </CardHeader>
           <CardContent className="p-6 pt-4">
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               <div>
                 <p className="text-sm text-muted-foreground">24h podsjetnici</p>
                 <p className="text-3xl font-semibold tabular-nums">{sent24hThisMonth}</p>
@@ -196,6 +197,10 @@ export default async function TerminiPage() {
               <div>
                 <p className="text-sm text-muted-foreground">2h podsjetnici</p>
                 <p className="text-3xl font-semibold tabular-nums">{sent2hThisMonth}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Ukupno poslano</p>
+                <p className="text-3xl font-semibold tabular-nums">{totalSentThisMonth}</p>
               </div>
             </div>
           </CardContent>
